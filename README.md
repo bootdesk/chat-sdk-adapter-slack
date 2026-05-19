@@ -80,6 +80,9 @@ Slack sends Event API payloads to your endpoint. Verify requests using the signi
 
 Supports Socket Mode, interactive messages, slash commands, and app mentions.
 
+## Documentationn
+Full API documentation: https://bootdesk.github.io/chat-sdk
+
 ## License
 
 MIT

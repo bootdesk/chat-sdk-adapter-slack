@@ -17,6 +17,8 @@ Slack adapter for bootdesk/chat-sdk-core. Namespace: `BootDesk\ChatSDK\Slack`
 - `HandlesOptionsLoad` — `parseOptionsLoad()` for `block_suggestion`, `respondToOptionsLoad()` returns JSON response
 - `HandlesSlackEvents` — `parseAssistantThreadStarted()`, `parseAssistantContextChanged()`, `parseAppHomeOpened()`, `parseMemberJoinedChannel()`
 - `SupportsModals` — `openModal()` calls Slack `views.open` API; uses `SlackModalConverter::toSlackView()`
+- `SupportsEditMessages` — editMessage via `chat.update`
+- `SupportsDeleteMessages` — deleteMessage via `chat.delete`
 
 ## registration
 `scc/register.php` registers `'slack' => SlackAdapter::class` via `AdapterRegistry`
