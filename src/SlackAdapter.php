@@ -14,6 +14,7 @@ use BootDesk\ChatSDK\Core\Contracts\HandlesOptionsLoad;
 use BootDesk\ChatSDK\Core\Contracts\HandlesReactions;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlackEvents;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlashCommands;
+use BootDesk\ChatSDK\Core\Contracts\HasAuthorInfo;
 use BootDesk\ChatSDK\Core\Contracts\SupportsDeleteMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsEditMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsModals;
@@ -22,6 +23,8 @@ use BootDesk\ChatSDK\Core\Exceptions\AuthenticationException;
 use BootDesk\ChatSDK\Core\FetchOptions;
 use BootDesk\ChatSDK\Core\FetchResult;
 use BootDesk\ChatSDK\Core\FileUpload;
+use BootDesk\ChatSDK\Core\LocalizationType;
+use BootDesk\ChatSDK\Core\LocalizationValue;
 use BootDesk\ChatSDK\Core\Message;
 use BootDesk\ChatSDK\Core\Modals\Modal;
 use BootDesk\ChatSDK\Core\PostableMessage;
@@ -33,7 +36,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
+class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
 {
     protected ?string $botUserId = null;
 
@@ -122,6 +125,10 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $user = $payload['user'] ?? [];
 
         return [
+            'author' => new Author(
+                id: $user['id'] ?? '',
+                name: $user['name'] ?? ($user['username'] ?? null),
+            ),
             'actionId' => $action['action_id'],
             'value' => $action['value'] ?? null,
             'threadId' => $threadId,
@@ -189,6 +196,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         ]);
 
         return [
+            'author' => new Author(id: $event['user']),
             'emoji' => $event['reaction'],
             'rawEmoji' => $event['reaction'],
             'added' => $type === 'reaction_added',
@@ -219,6 +227,10 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         }
 
         return [
+            'author' => new Author(
+                id: $user['id'] ?? '',
+                name: $user['name'] ?? ($user['username'] ?? null),
+            ),
             'callbackId' => $view['callback_id'] ?? '',
             'viewId' => $view['id'] ?? '',
             'values' => $values,
@@ -239,6 +251,10 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $user = $payload['user'] ?? [];
 
         return [
+            'author' => new Author(
+                id: $user['id'] ?? '',
+                name: $user['name'] ?? ($user['username'] ?? null),
+            ),
             'callbackId' => $view['callback_id'] ?? '',
             'viewId' => $view['id'] ?? '',
             'userId' => $user['id'] ?? '',
@@ -257,6 +273,10 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $user = $payload['user'] ?? [];
 
         return [
+            'author' => new Author(
+                id: $user['id'] ?? '',
+                name: $user['name'] ?? ($user['username'] ?? null),
+            ),
             'actionId' => $payload['action_id'] ?? '',
             'query' => $payload['value'] ?? '',
             'userId' => $user['id'] ?? '',
@@ -357,6 +377,10 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $channelId = isset($params['channel_id']) ? "slack:{$params['channel_id']}" : '';
 
         return [
+            'author' => new Author(
+                id: $params['user_id'] ?? '',
+                name: $params['user_name'] ?? null,
+            ),
             'command' => $params['command'],
             'text' => $params['text'] ?? '',
             'userId' => $params['user_id'] ?? '',
@@ -761,6 +785,45 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
             id: $user['id'],
             name: $user['name'] ?? ($user['profile']['real_name'] ?? ''),
             email: $user['profile']['email'] ?? null,
+        );
+    }
+
+    public function getAuthorInfo(Author $author): Author
+    {
+        $response = $this->apiCall('users.info', ['user' => $author->id]);
+        $user = $response['user'] ?? null;
+
+        if ($user === null) {
+            return $author;
+        }
+
+        $localizations = [];
+        $profilePicture = $author->profilePicture;
+
+        if (isset($user['profile']['image_512'])) {
+            $profilePicture = $user['profile']['image_512'];
+        }
+
+        if (isset($user['locale'])) {
+            $localizations[] = new LocalizationValue(LocalizationType::Locale, $user['locale']);
+        }
+
+        if (isset($user['tz'])) {
+            $localizations[] = new LocalizationValue(LocalizationType::Timezone, $user['tz']);
+        }
+
+        if ($localizations === [] && $profilePicture === $author->profilePicture) {
+            return $author;
+        }
+
+        return new Author(
+            $author->id,
+            $author->name,
+            $author->email,
+            $author->isMe,
+            $author->isBot,
+            $profilePicture,
+            ...$localizations,
         );
     }
 
