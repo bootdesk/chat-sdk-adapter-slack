@@ -132,6 +132,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
             'triggerId' => $payload['trigger_id'] ?? null,
             'raw' => $params['payload'],
             'callbackQueryId' => null,
+            'originId' => null,
         ];
     }
 
@@ -195,6 +196,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
             'messageId' => $event['item']['ts'],
             'userId' => $event['user'],
             'raw' => $payload,
+            'originId' => null,
         ];
     }
 

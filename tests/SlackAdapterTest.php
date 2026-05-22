@@ -886,4 +886,119 @@ class SlackAdapterTest extends TestCase
         $this->assertNotNull($result);
         $this->assertArrayHasKey('viewId', $result);
     }
+
+    // --- Fixture-based tests from slack.json ---
+
+    public function test_fixture_bot_mention(): void
+    {
+        $this->adapter->initialize($this->createMock(Chat::class));
+
+        $fixture = json_decode(
+            file_get_contents(__DIR__.'/fixtures/slack.json'),
+            true
+        );
+
+        $timestamp = (string) time();
+        $body = json_encode($fixture['mention']);
+        $signature = 'v0='.hash_hmac('sha256', "v0:{$timestamp}:{$body}", 'test_secret');
+
+        $request = $this->factory->createServerRequest('POST', '/webhooks/slack')
+            ->withHeader('X-Slack-Request-Timestamp', $timestamp)
+            ->withHeader('X-Slack-Signature', $signature)
+            ->withBody($this->factory->createStream($body));
+
+        $message = $this->adapter->parseWebhook($request);
+
+        $this->assertSame('1767224888.280449', $message->id);
+        $this->assertStringContainsString('Hey', $message->text);
+        $this->assertSame('U00FAKEUSER1', $message->author->id);
+        $this->assertSame('slack:C00FAKECHAN1:1767224888.280449', $message->threadId);
+        $this->assertFalse($message->isDM);
+    }
+
+    public function test_fixture_follow_up_in_thread(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(__DIR__.'/fixtures/slack.json'),
+            true
+        );
+
+        $body = json_encode($fixture['followUp']);
+        $request = $this->factory->createServerRequest('POST', '/webhooks/slack')
+            ->withBody($this->factory->createStream($body));
+
+        $message = $this->adapter->parseWebhook($request);
+
+        $this->assertSame('1767224901.701849', $message->id);
+        $this->assertSame('Hi', $message->text);
+        $this->assertSame('slack:C00FAKECHAN1:1767224888.280449', $message->threadId);
+    }
+
+    // --- Fixture-based tests from slack-slash-commands.json ---
+
+    public function test_fixture_slash_command_basic(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(__DIR__.'/fixtures/slack-slash-commands.json'),
+            true
+        );
+
+        $payload = $fixture['slashCommand'];
+        $body = http_build_query($payload);
+        $request = $this->factory->createServerRequest('POST', '/webhooks/slack')
+            ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
+            ->withBody($this->factory->createStream($body));
+
+        $result = $this->adapter->parseSlashCommand($request);
+
+        $this->assertNotNull($result);
+        $this->assertSame('/test-feedback', $result['command']);
+        $this->assertSame('', $result['text']);
+        $this->assertSame('U00FAKEUSER2', $result['userId']);
+        $this->assertSame('10520020890661.10229338706656.2e2188a074adf3bf9f8456b30180f405', $result['triggerId']);
+    }
+
+    // --- Fixture-based tests from slack-actions-reactions.json ---
+
+    public function test_fixture_block_action(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(__DIR__.'/fixtures/slack-actions-reactions.json'),
+            true
+        );
+
+        $payload = json_encode($fixture['action']);
+        $body = http_build_query(['payload' => $payload]);
+        $request = $this->factory->createServerRequest('POST', '/webhooks/slack')
+            ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
+            ->withBody($this->factory->createStream($body));
+
+        $result = $this->adapter->parseAction($request);
+
+        $this->assertNotNull($result);
+        $this->assertSame('info', $result['actionId']);
+        $this->assertSame('U00FAKEUSER1', $result['userId']);
+        $this->assertSame('10215325802133.3901254001572.2e2548aa918b35fd85829545c2d4ae2b', $result['triggerId']);
+        $this->assertSame('slack:C00FAKECHAN1:1767326125.870439', $result['threadId']);
+    }
+
+    public function test_fixture_reaction_added(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(__DIR__.'/fixtures/slack-actions-reactions.json'),
+            true
+        );
+
+        $body = json_encode($fixture['reaction']);
+        $request = $this->factory->createServerRequest('POST', '/webhooks/slack')
+            ->withBody($this->factory->createStream($body));
+
+        $result = $this->adapter->parseReaction($request);
+
+        $this->assertNotNull($result);
+        $this->assertSame('+1', $result['emoji']);
+        $this->assertTrue($result['added']);
+        $this->assertSame('U00FAKEUSER1', $result['userId']);
+        $this->assertSame('slack:C00FAKECHAN1:1767326126.896109', $result['threadId']);
+    }
 }

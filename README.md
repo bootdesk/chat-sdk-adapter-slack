@@ -12,11 +12,11 @@ Requires a PSR-18 HTTP client (`guzzlehttp/guzzle`, `symfony/http-client`, etc.)
 
 ## Configuration
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `bot_token` | Slack Bot OAuth Token | `xoxb-1234-abcd-...` |
-| `http_client` | PSR-18 HTTP client instance | `new GuzzleHttp\Client` |
-| `signing_secret` | Slack App Signing Secret | `8f742231b10e...` |
+| Variable         | Description                 | Example                 |
+| ---------------- | --------------------------- | ----------------------- |
+| `bot_token`      | Slack Bot OAuth Token       | `xoxb-1234-abcd-...`    |
+| `http_client`    | PSR-18 HTTP client instance | `new GuzzleHttp\Client` |
+| `signing_secret` | Slack App Signing Secret    | `8f742231b10e...`       |
 
 ```php
 use BootDesk\ChatSDK\Slack\SlackAdapter;
@@ -51,10 +51,10 @@ $adapter->postMessage('slack:C1234567890:1234567890.123456', 'Thread reply');
 
 ## Thread ID Format
 
-| Format | Description |
-|--------|-------------|
-| `slack:{channelId}` | Top-level channel message |
-| `slack:{channelId}:{threadTs}` | Reply within a thread |
+| Format                         | Description               |
+| ------------------------------ | ------------------------- |
+| `slack:{channelId}`            | Top-level channel message |
+| `slack:{channelId}:{threadTs}` | Reply within a thread     |
 
 ## Webhook
 
@@ -62,25 +62,27 @@ Slack sends Event API payloads to your endpoint. Verify requests using the signi
 
 ## Feature Matrix
 
-| Feature | Supported |
-|---------|-----------|
-| Post messages | ✓ |
-| Edit messages | ✓ |
-| Delete messages | ✓ |
-| Reactions | ✓ |
-| Typing indicator | ✓ |
-| Fetch messages | ✓ |
-| Fetch thread info | ✓ |
-| Fetch channel info | ✓ |
-| Get user | ✓ |
-| Open DM | ✗ |
-| Stream | ✓ |
+| Feature            | Supported |
+| ------------------ | --------- |
+| Post messages      | ✓         |
+| Edit messages      | ✓         |
+| Delete messages    | ✓         |
+| Reactions          | ✓         |
+| Slash commands     | ✓         |
+| Typing indicator   | ✓         |
+| Fetch messages     | ✓         |
+| Fetch thread info  | ✓         |
+| Fetch channel info | ✓         |
+| Get user           | ✓         |
+| Open DM            | ✗         |
+| Stream             | ✓         |
 
 ## Notes
 
 Supports Socket Mode, interactive messages, slash commands, and app mentions.
 
 ## Documentationn
+
 Full API documentation: https://bootdesk.github.io/chat-sdk
 
 ## License
