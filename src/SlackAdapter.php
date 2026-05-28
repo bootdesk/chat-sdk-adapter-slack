@@ -15,6 +15,7 @@ use BootDesk\ChatSDK\Core\Contracts\HandlesReactions;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlackEvents;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlashCommands;
 use BootDesk\ChatSDK\Core\Contracts\HasAuthorInfo;
+use BootDesk\ChatSDK\Core\Contracts\RequiresAsyncResponse;
 use BootDesk\ChatSDK\Core\Contracts\SupportsDeleteMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsEditMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsModals;
@@ -36,7 +37,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
-class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
+class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, RequiresAsyncResponse, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
 {
     protected ?string $botUserId = null;
 
