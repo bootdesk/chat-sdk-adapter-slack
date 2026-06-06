@@ -817,15 +817,16 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
             return $author;
         }
 
-        return new Author(
-            $author->id,
-            $author->name,
-            $author->email,
-            $author->isMe,
-            $author->isBot,
-            $profilePicture,
-            ...$localizations,
-        );
+        return (
+            new Author(
+                $author->id,
+                $author->name,
+                $author->email,
+                $author->isMe,
+                $author->isBot,
+                $profilePicture,
+            )
+        )->withLocalizations(...$localizations);
     }
 
     public function openDM(string $userId): ?string
