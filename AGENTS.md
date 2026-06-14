@@ -16,6 +16,7 @@ Slack adapter for bootdesk/chat-sdk-core. Namespace: `BootDesk\ChatSDK\Slack`
 - `HandlesModals` — `parseModalSubmit()` for `view_submission`, `parseModalClose()` for `view_closed`
 - `HandlesOptionsLoad` — `parseOptionsLoad()` for `block_suggestion`, `respondToOptionsLoad()` returns JSON response
 - `HandlesSlackEvents` — `parseAssistantThreadStarted()`, `parseAssistantContextChanged()`, `parseAppHomeOpened()`, `parseMemberJoinedChannel()`
+- `MustRehydrateAttachments` — restores `Attachment::fetchData` after queue deserialization via `GET url_private` with Bearer auth
 - `SupportsModals` — `openModal()` calls Slack `views.open` API; uses `SlackModalConverter::toSlackView()`
 - `SupportsEditMessages` — editMessage via `chat.update`
 - `SupportsDeleteMessages` — deleteMessage via `chat.delete`

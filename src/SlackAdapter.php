@@ -15,6 +15,7 @@ use BootDesk\ChatSDK\Core\Contracts\HandlesReactions;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlackEvents;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlashCommands;
 use BootDesk\ChatSDK\Core\Contracts\HasAuthorInfo;
+use BootDesk\ChatSDK\Core\Contracts\MustRehydrateAttachments;
 use BootDesk\ChatSDK\Core\Contracts\RequiresAsyncResponse;
 use BootDesk\ChatSDK\Core\Contracts\SupportsDeleteMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsEditMessages;
@@ -37,8 +38,9 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamInterface;
 
-class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, RequiresAsyncResponse, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
+class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, MustRehydrateAttachments, RequiresAsyncResponse, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
 {
     protected ?string $botUserId = null;
 
@@ -464,6 +466,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
                 size: $file['size'] ?? null,
                 width: $file['original_w'] ?? null,
                 height: $file['original_h'] ?? null,
+                fetchData: [$this, 'fetchMedia'],
             );
         }
 
@@ -922,24 +925,63 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         return $payload;
     }
 
-    protected function apiCall(string $method, array $params, string $contentType = 'application/json'): array
+    public function fetchMedia(Attachment $attachment): StreamInterface
     {
-        $factory = $this->psrFactory ?? new Psr17Factory;
+        $url = $attachment->url;
 
-        if ($contentType === 'application/x-www-form-urlencoded') {
-            $body = http_build_query(array_filter($params, fn ($v): bool => $v !== null));
-        } else {
-            $body = json_encode(array_filter($params, fn ($v): bool => $v !== null));
+        if ($url === null || $url === '') {
+            throw new AdapterException('No URL available for attachment');
         }
 
-        $request = $factory->createRequest('POST', $this->apiUrl.$method)
-            ->withHeader('Authorization', "Bearer {$this->botToken}")
-            ->withHeader('Content-Type', $contentType)
-            ->withBody($factory->createStream($body));
+        $raw = $this->apiCall('', httpMethod: 'GET', overrideUrl: $url, returnStream: true);
+
+        return $raw['stream'];
+    }
+
+    public function rehydrateAttachment(Attachment $attachment): Attachment
+    {
+        $url = $attachment->url;
+
+        if ($url === null || $url === '') {
+            return $attachment;
+        }
+
+        return $attachment->withFetchOptions(fetchData: [$this, 'fetchMedia']);
+    }
+
+    protected function apiCall(string $method, array $params = [], string $contentType = 'application/json', string $httpMethod = 'POST', ?string $overrideUrl = null, bool $returnStream = false): array
+    {
+        $factory = $this->psrFactory ?? new Psr17Factory;
+        $url = $overrideUrl ?? $this->apiUrl.$method;
+
+        $request = $factory->createRequest($httpMethod, $url)
+            ->withHeader('Authorization', "Bearer {$this->botToken}");
+
+        if ($httpMethod !== 'GET') {
+            if ($contentType === 'application/x-www-form-urlencoded') {
+                $body = http_build_query(array_filter($params, fn ($v): bool => $v !== null));
+            } else {
+                $body = json_encode(array_filter($params, fn ($v): bool => $v !== null));
+            }
+
+            $request = $request
+                ->withHeader('Content-Type', $contentType)
+                ->withBody($factory->createStream($body));
+        }
 
         $psrResponse = $this->httpClient->sendRequest($request);
-        $responseBody = (string) $psrResponse->getBody();
+        $statusCode = $psrResponse->getStatusCode();
 
+        if ($statusCode < 200 || $statusCode >= 300) {
+            $responseBody = (string) $psrResponse->getBody();
+            throw new AdapterException("Slack API returned HTTP {$statusCode}: {$responseBody}");
+        }
+
+        if ($returnStream) {
+            return ['stream' => $psrResponse->getBody(), 'status' => $statusCode];
+        }
+
+        $responseBody = (string) $psrResponse->getBody();
         $data = json_decode($responseBody, true);
 
         if (! is_array($data)) {
