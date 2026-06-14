@@ -30,6 +30,7 @@ use BootDesk\ChatSDK\Core\Message;
 use BootDesk\ChatSDK\Core\Modals\Modal;
 use BootDesk\ChatSDK\Core\PostableMessage;
 use BootDesk\ChatSDK\Core\SentMessage;
+use BootDesk\ChatSDK\Core\Support\EmojiResolver;
 use BootDesk\ChatSDK\Core\ThreadInfo;
 use BootDesk\ChatSDK\Core\UserInfo;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -45,14 +46,18 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
 
     protected ?SlackWebhookVerifier $webhookVerifier = null;
 
+    protected EmojiResolver $emojiResolver;
+
     public function __construct(
         protected readonly string $botToken,
         protected readonly ClientInterface $httpClient,
         ?string $signingSecret = null,
         protected readonly string $apiUrl = 'https://slack.com/api/',
         protected readonly ?Psr17Factory $psrFactory = null,
+        ?EmojiResolver $emojiResolver = null,
     ) {
         $this->formatConverter = new SlackFormatConverter;
+        $this->emojiResolver = $emojiResolver ?? EmojiResolver::default();
 
         if ($signingSecret !== null) {
             $this->webhookVerifier = new SlackWebhookVerifier($signingSecret);
@@ -198,7 +203,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
 
         return [
             'author' => new Author(id: $event['user']),
-            'emoji' => $event['reaction'],
+            'emoji' => $this->emojiResolver->fromSlack($event['reaction']),
             'rawEmoji' => $event['reaction'],
             'added' => $type === 'reaction_added',
             'threadId' => $threadId,
@@ -661,7 +666,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $this->apiCall('reactions.add', [
             'channel' => $this->channelIdFromThreadId($threadId),
             'timestamp' => $messageId,
-            'name' => $emoji,
+            'name' => $this->emojiResolver->toSlack($emoji),
         ]);
     }
 
@@ -670,7 +675,7 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         $this->apiCall('reactions.remove', [
             'channel' => $this->channelIdFromThreadId($threadId),
             'timestamp' => $messageId,
-            'name' => $emoji,
+            'name' => $this->emojiResolver->toSlack($emoji),
         ]);
     }
 
@@ -896,13 +901,25 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
     protected function buildMessageParams(PostableMessage $message): array
     {
         if ($message->isCard()) {
+            $text = $message->content->getFallbackText();
+
             return [
-                'text' => $message->content->getFallbackText(),
+                'text' => EmojiResolver::convertPlaceholders($text, 'slack', $this->emojiResolver),
                 'blocks' => SlackCards::toBlockKit($message->content),
             ];
         }
 
-        return $this->formatConverter->toSlackPayload($message);
+        $payload = $this->formatConverter->toSlackPayload($message);
+
+        if (isset($payload['text'])) {
+            $payload['text'] = EmojiResolver::convertPlaceholders($payload['text'], 'slack', $this->emojiResolver);
+        }
+
+        if (isset($payload['markdown_text'])) {
+            $payload['markdown_text'] = EmojiResolver::convertPlaceholders($payload['markdown_text'], 'slack', $this->emojiResolver);
+        }
+
+        return $payload;
     }
 
     protected function apiCall(string $method, array $params, string $contentType = 'application/json'): array

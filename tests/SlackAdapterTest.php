@@ -676,7 +676,8 @@ class SlackAdapterTest extends TestCase
         $result = $this->adapter->parseReaction($request);
 
         $this->assertNotNull($result);
-        $this->assertSame('+1', $result['emoji']);
+        $this->assertSame('thumbs_up', $result['emoji']);
+        $this->assertSame('+1', $result['rawEmoji']);
         $this->assertTrue($result['added']);
     }
 
@@ -996,7 +997,8 @@ class SlackAdapterTest extends TestCase
         $result = $this->adapter->parseReaction($request);
 
         $this->assertNotNull($result);
-        $this->assertSame('+1', $result['emoji']);
+        $this->assertSame('thumbs_up', $result['emoji']);
+        $this->assertSame('+1', $result['rawEmoji']);
         $this->assertTrue($result['added']);
         $this->assertSame('U00FAKEUSER1', $result['userId']);
         $this->assertSame('slack:C00FAKECHAN1:1767326126.896109', $result['threadId']);

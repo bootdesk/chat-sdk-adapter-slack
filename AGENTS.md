@@ -31,8 +31,12 @@ new SlackAdapter(
     ?string $signingSecret = null,
     string $apiUrl = 'https://slack.com/api/',
     ?Psr17Factory $psrFactory = null,
+    ?EmojiResolver $emojiResolver = null,  // defaults to EmojiResolver::default()
 );
 ```
+
+- `EmojiResolver` normalizes incoming reactions (`parseReaction` → `emoji` field) and outgoing reactions (`addReaction`/`removeReaction` → converts to Slack format)
+- `{{emoji:name}}` placeholders in message text auto-convert to `:emoji:` Slack format inside `buildMessageParams()`
 
 ## thread ID format
 `slack:{channel}:{thread_ts}` — e.g. `slack:C123:1234567890.123456`
