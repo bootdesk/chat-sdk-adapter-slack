@@ -7,18 +7,15 @@ use BootDesk\ChatSDK\Core\Author;
 use BootDesk\ChatSDK\Core\ChannelInfo;
 use BootDesk\ChatSDK\Core\Chat;
 use BootDesk\ChatSDK\Core\Contracts\Adapter;
+use BootDesk\ChatSDK\Core\Contracts\CompositeInterfaces\HandlesInteractions;
+use BootDesk\ChatSDK\Core\Contracts\CompositeInterfaces\SupportsMessageMutability;
 use BootDesk\ChatSDK\Core\Contracts\FormatConverter;
-use BootDesk\ChatSDK\Core\Contracts\HandlesActions;
 use BootDesk\ChatSDK\Core\Contracts\HandlesModals;
 use BootDesk\ChatSDK\Core\Contracts\HandlesOptionsLoad;
-use BootDesk\ChatSDK\Core\Contracts\HandlesReactions;
 use BootDesk\ChatSDK\Core\Contracts\HandlesSlackEvents;
-use BootDesk\ChatSDK\Core\Contracts\HandlesSlashCommands;
 use BootDesk\ChatSDK\Core\Contracts\HasAuthorInfo;
 use BootDesk\ChatSDK\Core\Contracts\MustRehydrateAttachments;
 use BootDesk\ChatSDK\Core\Contracts\RequiresAsyncResponse;
-use BootDesk\ChatSDK\Core\Contracts\SupportsDeleteMessages;
-use BootDesk\ChatSDK\Core\Contracts\SupportsEditMessages;
 use BootDesk\ChatSDK\Core\Contracts\SupportsModals;
 use BootDesk\ChatSDK\Core\Exceptions\AdapterException;
 use BootDesk\ChatSDK\Core\Exceptions\AuthenticationException;
@@ -40,7 +37,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamInterface;
 
-class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOptionsLoad, HandlesReactions, HandlesSlackEvents, HandlesSlashCommands, HasAuthorInfo, MustRehydrateAttachments, RequiresAsyncResponse, SupportsDeleteMessages, SupportsEditMessages, SupportsModals
+class SlackAdapter implements Adapter, HandlesInteractions, HandlesModals, HandlesOptionsLoad, HandlesSlackEvents, HasAuthorInfo, MustRehydrateAttachments, RequiresAsyncResponse, SupportsMessageMutability, SupportsModals
 {
     protected ?string $botUserId = null;
 
@@ -752,8 +749,39 @@ class SlackAdapter implements Adapter, HandlesActions, HandlesModals, HandlesOpt
         return new ThreadInfo(
             id: $threadId,
             channelId: $decoded['channel'],
+            title: $channel['name'] ?? null,
             messageCount: $channel['num_members'] ?? null,
+            topic: $channel['topic']['value'] ?? ($channel['purpose']['value'] ?? null),
+            isArchived: $channel['is_archived'] ?? null,
         );
+    }
+
+    public function editThread(string $threadId, ThreadInfo $threadInfo): ThreadInfo
+    {
+        $decoded = $this->decodeThreadId($threadId);
+        $channel = $decoded['channel'];
+
+        if ($threadInfo->title !== null) {
+            $this->apiCall('conversations.rename', [
+                'channel' => $channel,
+                'name' => $threadInfo->title,
+            ]);
+        }
+
+        if ($threadInfo->topic !== null) {
+            $this->apiCall('conversations.setTopic', [
+                'channel' => $channel,
+                'topic' => $threadInfo->topic,
+            ]);
+        }
+
+        if ($threadInfo->isArchived === true) {
+            $this->apiCall('conversations.archive', ['channel' => $channel]);
+        } elseif ($threadInfo->isArchived === false) {
+            $this->apiCall('conversations.unarchive', ['channel' => $channel]);
+        }
+
+        return $this->fetchThread($threadId);
     }
 
     public function fetchChannelInfo(string $channelId): ?ChannelInfo
