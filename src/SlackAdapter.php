@@ -490,7 +490,9 @@ class SlackAdapter implements Adapter, HandlesInteractions, HandlesModals, Handl
 
     public function channelIdFromThreadId(string $threadId): string
     {
-        return $this->decodeThreadId($threadId)['channel'];
+        $decoded = $this->decodeThreadId($threadId);
+
+        return "slack:{$decoded['channel']}";
     }
 
     public function postMessage(string $threadId, PostableMessage $message): SentMessage
@@ -787,7 +789,11 @@ class SlackAdapter implements Adapter, HandlesInteractions, HandlesModals, Handl
     public function fetchChannelInfo(string $channelId): ?ChannelInfo
     {
         $parts = explode(':', $channelId, 3);
-        $channel = $parts[1] ?? $parts[0];
+        $channel = $parts[1] ?? '';
+
+        if ($channel === '') {
+            return null;
+        }
 
         try {
             $response = $this->apiCall('conversations.info', ['channel' => $channel]);
@@ -802,7 +808,7 @@ class SlackAdapter implements Adapter, HandlesInteractions, HandlesModals, Handl
         }
 
         return new ChannelInfo(
-            id: $channel['id'],
+            id: "slack:{$channel['id']}",
             name: $channel['name'] ?? '',
             topic: $channel['topic']['value'] ?? null,
             isPrivate: $channel['is_private'] ?? false,
@@ -868,8 +874,16 @@ class SlackAdapter implements Adapter, HandlesInteractions, HandlesModals, Handl
     public function openDM(string $userId): ?string
     {
         $response = $this->apiCall('conversations.open', ['users' => $userId]);
+        $channelId = $response['channel']['id'] ?? null;
 
-        return $response['channel']['id'] ?? null;
+        if ($channelId === null) {
+            return null;
+        }
+
+        return $this->encodeThreadId([
+            'channel' => $channelId,
+            'thread_ts' => '',
+        ]);
     }
 
     public function getFormatConverter(): ?FormatConverter
