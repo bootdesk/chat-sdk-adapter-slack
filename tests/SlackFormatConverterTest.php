@@ -40,9 +40,8 @@ class SlackFormatConverterTest extends TestCase
     public function test_link_with_text(): void
     {
         $ast = $this->converter->toAst('Check <https://example.com|this link>');
-        $html = $this->converter->fromAst($ast);
-        $this->assertStringContainsString('href="https://example.com"', $html);
-        $this->assertStringContainsString('this link', $html);
+        $markdown = $this->converter->fromAst($ast);
+        $this->assertStringContainsString('[this link](https://example.com)', $markdown);
     }
 
     public function test_bare_link(): void
@@ -55,8 +54,8 @@ class SlackFormatConverterTest extends TestCase
     public function test_slack_bold_to_markdown(): void
     {
         $ast = $this->converter->toAst('This is *bold* text');
-        $html = $this->converter->fromAst($ast);
-        $this->assertStringContainsString('<strong>bold</strong>', $html);
+        $markdown = $this->converter->fromAst($ast);
+        $this->assertStringContainsString('**bold**', $markdown);
     }
 
     public function test_slack_strikethrough_to_markdown(): void
