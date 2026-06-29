@@ -118,4 +118,27 @@ class SlackFormatConverterTest extends TestCase
         $markdown = $this->converter->fromAst($ast);
         $this->assertStringContainsString('bold text', $markdown);
     }
+
+    public function test_render_as_gfm_from_slack_mrkdwn(): void
+    {
+        $result = $this->converter->renderAsGFM('Hello <@U12345|john> check <https://example.com|this link>');
+
+        $this->assertStringContainsString('@john', $result);
+        $this->assertStringContainsString('[this link](https://example.com)', $result);
+    }
+
+    public function test_render_as_gfm_converts_slack_bold(): void
+    {
+        $result = $this->converter->renderAsGFM('*bold*');
+
+        $this->assertStringContainsString('**bold**', $result);
+    }
+
+    public function test_render_as_gfm_from_ast(): void
+    {
+        $ast = $this->converter->toAst('*bold*');
+        $result = $this->converter->renderAsGFM($ast);
+
+        $this->assertStringContainsString('**bold**', $result);
+    }
 }
